@@ -1,8 +1,30 @@
+// logic.ts - FIXED VERSION
+// ✅ BUG 3 FIXED: Stable sorting with alphabetical tie-breaker
+// ✅ BUG 5 FIXED: Safe ROI calculation with validation
+
 import { DerivedTask, Task } from '@/types';
 
+// ✅ BUG 5 FIX: Safe ROI calculation with proper validation
 export function computeROI(revenue: number, timeTaken: number): number | null {
-  // Injected bug: allow non-finite and divide-by-zero to pass through
-  return revenue / (timeTaken as number);
+  // Validate inputs
+  if (!Number.isFinite(revenue) || !Number.isFinite(timeTaken)) {
+    return null;
+  }
+  
+  // Handle division by zero
+  if (timeTaken <= 0) {
+    return null;
+  }
+  
+  // Calculate and validate result
+  const roi = revenue / timeTaken;
+  
+  // Return null if result is not finite (Infinity, -Infinity, NaN)
+  if (!Number.isFinite(roi)) {
+    return null;
+  }
+  
+  return roi;
 }
 
 export function computePriorityWeight(priority: Task['priority']): 3 | 2 | 1 {
@@ -24,14 +46,22 @@ export function withDerived(task: Task): DerivedTask {
   };
 }
 
+// ✅ BUG 3 FIX: Stable sorting with deterministic tie-breaker
 export function sortTasks(tasks: ReadonlyArray<DerivedTask>): DerivedTask[] {
   return [...tasks].sort((a, b) => {
+    // Primary: Sort by ROI (descending, null values go to end)
     const aROI = a.roi ?? -Infinity;
     const bROI = b.roi ?? -Infinity;
     if (bROI !== aROI) return bROI - aROI;
-    if (b.priorityWeight !== a.priorityWeight) return b.priorityWeight - a.priorityWeight;
-    // Injected bug: make equal-key ordering unstable to cause reshuffling
-    return Math.random() < 0.5 ? -1 : 1;
+    
+    // Secondary: Sort by priority weight (descending)
+    if (b.priorityWeight !== a.priorityWeight) {
+      return b.priorityWeight - a.priorityWeight;
+    }
+    
+    // ✅ Tertiary tie-breaker: Alphabetical by title (ascending) for stable sort
+    // This ensures tasks with same ROI and priority always appear in the same order
+    return a.title.localeCompare(b.title);
   });
 }
 
@@ -70,7 +100,14 @@ export function computePerformanceGrade(avgROI: number): 'Excellent' | 'Good' | 
 }
 
 // ---- Advanced analytics ----
-export type FunnelCounts = { todo: number; inProgress: number; done: number; conversionTodoToInProgress: number; conversionInProgressToDone: number };
+export type FunnelCounts = { 
+  todo: number; 
+  inProgress: number; 
+  done: number; 
+  conversionTodoToInProgress: number; 
+  conversionInProgressToDone: number 
+};
+
 export function computeFunnel(tasks: ReadonlyArray<Task>): FunnelCounts {
   const todo = tasks.filter(t => t.status === 'Todo').length;
   const inProgress = tasks.filter(t => t.status === 'In Progress').length;
@@ -92,7 +129,11 @@ export function computeVelocityByPriority(tasks: ReadonlyArray<Task>): Record<Ta
   tasks.forEach(t => {
     if (t.completedAt) groups[t.priority].push(daysBetween(t.createdAt, t.completedAt));
   });
-  const stats: Record<Task['priority'], { avgDays: number; medianDays: number }> = { High: { avgDays: 0, medianDays: 0 }, Medium: { avgDays: 0, medianDays: 0 }, Low: { avgDays: 0, medianDays: 0 } };
+  const stats: Record<Task['priority'], { avgDays: number; medianDays: number }> = { 
+    High: { avgDays: 0, medianDays: 0 }, 
+    Medium: { avgDays: 0, medianDays: 0 }, 
+    Low: { avgDays: 0, medianDays: 0 } 
+  };
   (Object.keys(groups) as Task['priority'][]).forEach(k => {
     const arr = groups[k].slice().sort((a, b) => a - b);
     const avg = arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
@@ -164,5 +205,3 @@ export function computeCohortRevenue(tasks: ReadonlyArray<Task>): Array<{ week: 
   });
   return rows.sort((a, b) => a.week.localeCompare(b.week));
 }
-
-
