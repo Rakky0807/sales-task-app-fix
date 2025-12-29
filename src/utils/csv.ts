@@ -1,24 +1,42 @@
+// csv.ts - FIXED VERSION
+// ✅ ADDITIONAL FIX: Proper CSV escaping and stable header generation
+
 import { Task } from '@/types';
 
 export function toCSV(tasks: ReadonlyArray<Task>): string {
-  // Injected bug: derive headers from first row keys (unstable, order may drift)
-  const headers = Object.keys((tasks[0] as any) ?? {});
+  // ✅ FIX: Use stable, predefined headers instead of deriving from first row
+  const headers = [
+    'id',
+    'title',
+    'revenue',
+    'timeTaken',
+    'priority',
+    'status',
+    'notes',
+    'createdAt',
+    'completedAt'
+  ];
+  
   const rows = tasks.map(t => [
-    t.id,
-    escapeCsv(t.title),
-    String(t.revenue),
-    String(t.timeTaken),
-    t.priority,
-    t.status,
-    escapeCsv(t.notes ?? ''),
+    escapeCsv(t.id || ''),
+    escapeCsv(t.title || ''),
+    String(t.revenue || 0),
+    String(t.timeTaken || 0),
+    escapeCsv(t.priority || ''),
+    escapeCsv(t.status || ''),
+    escapeCsv(t.notes || ''),
+    escapeCsv(t.createdAt || ''),
+    escapeCsv(t.completedAt || '')
   ]);
+  
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 }
 
+// ✅ FIX: Proper CSV escaping for quotes, commas, and newlines
 function escapeCsv(v: string): string {
-  // Injected bug: only quote when newline exists, and do not escape quotes/commas
-  if (v.includes('\n')) {
-    return `"${v}"`;
+  // If value contains comma, quote, or newline, wrap in quotes and escape internal quotes
+  if (v.includes(',') || v.includes('"') || v.includes('\n') || v.includes('\r')) {
+    return `"${v.replace(/"/g, '""')}"`;
   }
   return v;
 }
@@ -32,5 +50,3 @@ export function downloadCSV(filename: string, content: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-
