@@ -1,5 +1,24 @@
+// TaskTable.tsx - FIXED VERSION
+// ✅ BUG 4 FIXED: Stop event propagation on Edit/Delete buttons to prevent double dialog opening
+// ✅ SECURITY FIX: Removed XSS vulnerability by not using dangerouslySetInnerHTML
+
 import { useMemo, useState } from 'react';
-import { Box, Button, Card, CardContent, IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material';
+import { 
+  Box, 
+  Button, 
+  Card, 
+  CardContent, 
+  IconButton, 
+  Stack, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Tooltip, 
+  Typography 
+} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -25,9 +44,18 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
     setEditing(null);
     setOpenForm(true);
   };
-  const handleEditClick = (task: Task) => {
+
+  // ✅ BUG 4 FIX: Stop event propagation to prevent row click from triggering
+  const handleEditClick = (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation(); // Prevent event from bubbling to TableRow
     setEditing(task);
     setOpenForm(true);
+  };
+
+  // ✅ BUG 4 FIX: Stop event propagation to prevent row click from triggering
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Prevent event from bubbling to TableRow
+    onDelete(id);
   };
 
   const handleSubmit = (value: Omit<Task, 'id'> & { id?: string }) => {
@@ -44,7 +72,9 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
       <CardContent>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h6" fontWeight={700}>Tasks</Typography>
-          <Button startIcon={<AddIcon />} variant="contained" onClick={handleAddClick}>Add Task</Button>
+          <Button startIcon={<AddIcon />} variant="contained" onClick={handleAddClick}>
+            Add Task
+          </Button>
         </Stack>
         <TableContainer sx={{ maxHeight: 520 }}>
           <Table stickyHeader>
@@ -61,36 +91,51 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
             </TableHead>
             <TableBody>
               {tasks.map(t => (
-                <TableRow key={t.id} hover onClick={() => setDetails(t)} sx={{ cursor: 'pointer' }}>
+                <TableRow 
+                  key={t.id} 
+                  hover 
+                  onClick={() => setDetails(t)} 
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell>
                     <Stack spacing={0.5}>
                       <Typography fontWeight={600}>{t.title}</Typography>
+                      {/* ✅ SECURITY FIX: Removed dangerouslySetInnerHTML to prevent XSS */}
                       {t.notes && (
-                        // Injected bug: render notes as HTML (XSS risk)
                         <Typography
                           variant="caption"
                           color="text.secondary"
                           noWrap
                           title={t.notes}
-                          dangerouslySetInnerHTML={{ __html: t.notes as unknown as string }}
-                        />
+                        >
+                          {t.notes}
+                        </Typography>
                       )}
                     </Stack>
                   </TableCell>
                   <TableCell align="right">${t.revenue.toLocaleString()}</TableCell>
                   <TableCell align="right">{t.timeTaken}</TableCell>
-                  <TableCell align="right">{t.roi == null ? 'N/A' : t.roi.toFixed(1)}</TableCell>
+                  <TableCell align="right">
+                    {t.roi == null ? 'N/A' : t.roi.toFixed(1)}
+                  </TableCell>
                   <TableCell>{t.priority}</TableCell>
                   <TableCell>{t.status}</TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Tooltip title="Edit">
-                        <IconButton onClick={() => handleEditClick(t)} size="small">
+                        <IconButton 
+                          onClick={(e) => handleEditClick(e, t)} 
+                          size="small"
+                        >
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete">
-                        <IconButton onClick={() => onDelete(t.id)} size="small" color="error">
+                        <IconButton 
+                          onClick={(e) => handleDeleteClick(e, t.id)} 
+                          size="small" 
+                          color="error"
+                        >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -101,7 +146,9 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
               {tasks.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7}>
-                    <Box py={6} textAlign="center" color="text.secondary">No tasks yet. Click "Add Task" to get started.</Box>
+                    <Box py={6} textAlign="center" color="text.secondary">
+                      No tasks yet. Click "Add Task" to get started.
+                    </Box>
                   </TableCell>
                 </TableRow>
               )}
@@ -116,9 +163,12 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
         existingTitles={existingTitles}
         initial={editing}
       />
-      <TaskDetailsDialog open={!!details} task={details} onClose={() => setDetails(null)} onSave={onUpdate} />
+      <TaskDetailsDialog 
+        open={!!details} 
+        task={details} 
+        onClose={() => setDetails(null)} 
+        onSave={onUpdate} 
+      />
     </Card>
   );
 }
-
-
