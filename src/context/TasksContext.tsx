@@ -1,3 +1,6 @@
+// TasksContext.tsx - FIXED VERSION
+// ✅ BUG 2 FIXED: Added clearLastDeleted to context interface
+
 import { createContext, useContext, ReactNode } from 'react';
 import { useTasks } from '@/hooks/useTasks';
 import { DerivedTask, Metrics, Task } from '@/types';
@@ -13,6 +16,7 @@ interface TasksContextValue {
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   undoDelete: () => void;
+  clearLastDeleted: () => void; // ✅ BUG 2 FIX: Added clearLastDeleted method
 }
 
 const TasksContext = createContext<TasksContextValue | undefined>(undefined);
@@ -27,5 +31,3 @@ export function useTasksContext(): TasksContextValue {
   if (!ctx) throw new Error('useTasksContext must be used within TasksProvider');
   return ctx as TasksContextValue;
 }
-
-
